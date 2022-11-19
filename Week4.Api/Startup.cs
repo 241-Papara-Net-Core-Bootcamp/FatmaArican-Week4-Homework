@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using Week4.Data.Abstract;
 using Week4.Data.Concrete;
 using Week4.Data.Context;
@@ -53,13 +57,44 @@ namespace Week4.Api
             }
 
             app.UseRouting();
-
+            app.UseMiddleware<LogMiddleware>();
             app.UseAuthorization();
 
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
             });
+
         }
     }
 }
+public class LogMiddleware
+{
+    private readonly RequestDelegate _next;
+    private readonly ILogger<LogMiddleware> _logger;
+
+    public LogMiddleware(RequestDelegate next, ILogger<LogMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task Invoke(HttpContext httpContext)
+    {
+
+        var watch = Stopwatch.StartNew();
+
+        await _next.Invoke(httpContext);
+        watch.Stop();
+        if (watch.ElapsedMilliseconds > 500)
+        {
+            _logger.LogWarning ("Duration:{duration}ms, Request path:{path},Request Method:{method}",
+                watch.ElapsedMilliseconds, httpContext.Request.Path, httpContext.Request.Method);
+        }
+        else
+        {
+            _logger.LogInformation("Herþey yolunda");
+        }
+    }
+}
+
